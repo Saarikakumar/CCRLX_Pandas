@@ -1,21 +1,33 @@
 import os
 import pandas as pd
-import numpy as np
+import pylab as plt
 
 SQ_NAME = "parkin_sq.tab"
 MQ_NAME = "parkin_mq.tab"
+VD_NAME = "vdlist"
 
 WORK_DIR = os.getcwd()
 
 SQ_PATH = WORK_DIR+"/"+SQ_NAME
 MQ_PATH = WORK_DIR+"/"+MQ_NAME
+VD_NAME = WORK_DIR+"/"+VD_NAME
+
+
+def open_data(data_path):
+    with open(data_path, "r") as f:
+        contents = f.readlines()
+    return contents
 
 
 def get_data(data_path):
-    with open(data_path, "r") as f:
-        contents = f.readlines()
-        column_names = get_column_names(contents)
+    contents = open_data(data_path)
+    column_names = get_column_names(contents)
     return column_names
+
+
+def clean_vdlist(vdlist):
+    clean_list = [float(entry.strip("s\n")) for entry in vdlist]
+    return clean_list
 
 
 def get_column_names(data):
@@ -59,9 +71,52 @@ def remove_incomplete(sq_df, mq_df):
     return sq_df_clean, mq_df_clean
 
 
-sq_df, sq_int_names = text_to_df(SQ_PATH)
-mq_df, mq_int_names = text_to_df(MQ_PATH)
+def get_heights(data_frame, column_names):
+    for name in column_names:
+        for index, row in data_frame.iterrows():
+            data_frame.at[index, name] = data_frame.loc[index, name] * \
+                                         data_frame.loc[index, "HEIGHT"]
+    return data_frame
 
+
+def scale_by_scans(data_frame, column_names, sq_ns, mq_ns):
+    ratio = float(sq_ns/mq_ns)
+    for name in column_names:
+        for index, row in data_frame.iterrows():
+            data_frame.at[index, name] = data_frame.loc[index, name] * ratio
+    return data_frame
+
+
+def divide_all(sq_df, mq_df, column_names, sq_nc, mq_nc):
+    sq_df = sq_df.sort_values(by=["ASS"])
+    mq_df = mq_df.sort_values(by=["ASS"])
+    sq_df = sq_df.reset_index(drop=True)
+    mq_df = mq_df.reset_index(drop=True)
+    ratio_df = sq_df
+    nc_proc = (2.0 ** (-1.0 * mq_nc)) / (2.0 ** (-1.0 * sq_nc))
+    mq_names = column_names[:-2][:]
+    mq_names.reverse()
+    for i, name in enumerate(column_names):
+        for index, row in mq_df.iterrows():
+            if sq_df.loc[index, "ASS"] == mq_df.loc[index, "ASS"]:
+                if i <= 7:
+                    ratio_df.at[index, name] = mq_df.loc[index, mq_names[i]] \
+                                            / sq_df.loc[index, name] / nc_proc
+                else:
+                    ratio_df.at[index, name] = mq_df.loc[index, name] \
+                                               / sq_df.loc[
+                                                   index, name] / nc_proc
+            else:
+                print("ERROR: DATA MISMATCH")
+    return ratio_df
+
+RATIO = 32.0/120.0
+
+VDLIST = open_data(VD_NAME)
+VDLIST = clean_vdlist(VDLIST)
+
+sq_df, sq_names = text_to_df(SQ_PATH)
+mq_df, mq_names = text_to_df(MQ_PATH)
 
 sq_df = remove_none(sq_df)
 sq_df = remove_duplicates(sq_df)
@@ -71,11 +126,29 @@ mq_df = remove_duplicates(mq_df)
 
 sq_df, mq_df = remove_incomplete(sq_df, mq_df)
 
-test = sq_df[["ASS"]]
-test = test.reset_index(drop=True)
-for name in sq_int_names:
-    buffer = [row[name]*row["HEIGHT"] for index, row in sq_df.iterrows()]
-    buffer = pd.DataFrame(np.array(buffer).reshape(len(buffer), 1), columns=[name])
-    test = test.join(buffer)
+sq_df = get_heights(sq_df, sq_names)
+mq_df = get_heights(mq_df, mq_names)
 
-print(test.shape)
+mq_df = scale_by_scans(mq_df, mq_names, 32.0, 120.0)
+
+#test = sq_df[["ASS"]]
+#test = test.reset_index(drop=True)
+#for name in sq_int_names:
+#    buffer = [row[name]*row["HEIGHT"] for index, row in sq_df.iterrows()]
+#    buffer = pd.DataFrame(np.array(buffer).reshape(len(buffer), 1), columns=[name])
+#    test = test.join(buffer)
+#print(test.head())
+
+#for name in sq_int_names:
+#    for index, row in sq_df.iterrows():
+#        sq_df.at[index, name] = sq_df.loc[index, name] * sq_df.loc[index, "HEIGHT"]
+
+final = divide_all(sq_df, mq_df, sq_names, -4.0, -5.0)
+
+test =[]
+for index, row in final.iterrows():
+    test = row.tolist()
+
+    plt.plot(VDLIST[:-2], test[2:-2], "ok")
+    plt.show()
+
