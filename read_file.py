@@ -30,6 +30,14 @@ def clean_vdlist(vdlist):
     return clean_list
 
 
+def get_duplicates(vdlist):
+    # Get unique values
+    delays = list(set(VDLIST))
+    delays.sort()
+    duplicates = vdlist[len(delays):]
+    return delays, duplicates
+
+
 def get_column_names(data):
     for index, row in enumerate(data):
         if row.startswith("VARS"):
@@ -94,18 +102,11 @@ def divide_all(sq_df, mq_df, column_names, sq_nc, mq_nc):
     mq_df = mq_df.reset_index(drop=True)
     ratio_df = sq_df
     nc_proc = (2.0 ** (-1.0 * mq_nc)) / (2.0 ** (-1.0 * sq_nc))
-    mq_names = column_names[:-2][:]
-    mq_names.reverse()
     for i, name in enumerate(column_names):
         for index, row in mq_df.iterrows():
             if sq_df.loc[index, "ASS"] == mq_df.loc[index, "ASS"]:
-                if i <= 7:
-                    ratio_df.at[index, name] = mq_df.loc[index, mq_names[i]] \
-                                            / sq_df.loc[index, name] / nc_proc
-                else:
-                    ratio_df.at[index, name] = mq_df.loc[index, name] \
-                                               / sq_df.loc[
-                                                   index, name] / nc_proc
+                ratio_df.at[index, name] = mq_df.loc[index, name] \
+                                        / sq_df.loc[index, name] / nc_proc
             else:
                 print("ERROR: DATA MISMATCH")
     return ratio_df
@@ -115,8 +116,41 @@ RATIO = 32.0/120.0
 VDLIST = open_data(VD_NAME)
 VDLIST = clean_vdlist(VDLIST)
 
+DELAYS, DUPLICATES = get_duplicates(VDLIST)
+
 sq_df, sq_names = text_to_df(SQ_PATH)
 mq_df, mq_names = text_to_df(MQ_PATH)
+
+
+def reverse_mq(mq_df, delays, duplicates, names):
+    column_index = list(range(2, 2+len(delays)))
+    column_index.reverse()
+    new_mq_df = mq_df.iloc[:, 0:2]
+    mq_data = mq_df.iloc[:, column_index]
+    sum_all = len(delays)+len(duplicates)
+    mq_dup = mq_df.iloc[:, sum_all:2+sum_all]
+    new_mq_df = new_mq_df.join(mq_data)
+    new_mq_df = new_mq_df.join(mq_dup)
+    new_mq_df.columns = names
+    return new_mq_df
+
+mq_df = reverse_mq(mq_df, DELAYS, DUPLICATES, list(sq_df))
+
+print(mq_df)
+
+"""
+new_mq_columns = list(range(2,10,1))
+new_mq_columns.reverse()
+
+new_mq_df = mq_df.iloc[:,0:2]
+mq_data = mq_df.iloc[:,new_mq_columns]
+mq_dup = mq_df.iloc[:,10:12]
+new_mq_df = new_mq_df.join(mq_data)
+new_mq_df = new_mq_df.join(mq_dup)
+
+print(new_mq_df)
+"""
+
 
 sq_df = remove_none(sq_df)
 sq_df = remove_duplicates(sq_df)
@@ -149,6 +183,5 @@ test =[]
 for index, row in final.iterrows():
     test = row.tolist()
 
-    plt.plot(VDLIST[:-2], test[2:-2], "ok")
+    plt.plot(VDLIST, test[2:], "ok")
     plt.show()
-
