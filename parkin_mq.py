@@ -147,7 +147,7 @@ def l_square(df_final, x, p, c, num_dup):
         #plt.figtext(0.83, 0.3, red_chi_sq, fontsize=14)
         observed_values = (y[:-2])
         sns.despine()
-        plt.show()
+        #plt.show()
 
 def dup_err (df, uniq_val, dup_val):
     dataindex = []
@@ -160,10 +160,13 @@ def dup_err (df, uniq_val, dup_val):
             dup_subtract.append(df.iloc[rowindex, item] - df.iloc[rowindex, len(uniq_val)+index])
         all_dup_subtract.append(dup_subtract)
         dup_subtract = []
+        #print(all_dup_subtract)
 
-    np_diff_subt = (np.array(all_dup_subtract).reshape(len(all_dup_subtract[0]),len(dup_val)))
+    #np_diff_subt = (np.array(all_dup_subtract).reshape(len(all_dup_subtract[0]),len(dup_val)))
+    np_diff_subt = np.transpose(np.array(all_dup_subtract))
     df_diff = pd.DataFrame(np_diff_subt, columns=["Dup_diff_1", "Dup_diff_2"])
-    print(df_diff["Dup_diff_2"])
+    #print(df_diff)
+    #print(df_diff["Dup_diff_2"])
     return(df.join(df_diff))
     #df_diff_2 = pd.DataFrame(dup_subtract[90:181], columns=["Dup_diff_2"])
     #dup_diff_final=(df_diff_1.join(df_diff_2.join(df)))
@@ -171,9 +174,11 @@ def dup_err (df, uniq_val, dup_val):
 
 def std_dev(df, unique_val, dup_val):
     col = [col for col in df]
+    sd = []
     #print(dup_val)
     for index, col in enumerate(dup_val):
-        print(np.std(df.iloc[:, len(unique_val) + len(dup_val) + 2 + index].tolist(), ddof=1)/np.sqrt(2.0))
+        sd.append(np.std(df.iloc[:, len(unique_val) + len(dup_val) + 2 + index].tolist(),ddof=1)/np.sqrt(2.0))
+    return sd
 
 
 parkin_mq = sep(d1, mq)
@@ -220,17 +225,14 @@ parkin_sq_sorted = parkin_sq_sorted.reset_index(drop=True)
 
 parkins_mq_mult = mult_df(parkin_mq_sorted, (32/120))
 
-#df_dup_subtr_mq = (dup_err(parkins_mq_mult, unique_vd, dup_vd))
-#df_dup_subtr_sq = (dup_err(parkin_sq_sorted, unique_vd, dup_vd))
+df_dup_subtr_mq = (dup_err(parkins_mq_mult, unique_vd, dup_vd))
+df_dup_subtr_sq = (dup_err(parkin_sq_sorted, unique_vd, dup_vd))
 
 
-#std_dev_mq = std_dev(df_dup_subtr_mq, unique_vd, dup_vd)
-#std_dev_sq = std_dev(df_dup_subtr_sq, unique_vd, dup_vd)
 
-#std_dev_sq = std_dev(df_dup_subtr_sq, unique_vd, dup_vd)
-#print(std_dev_mq)
+std_dev_mq = std_dev(df_dup_subtr_mq, unique_vd, dup_vd)
 
-#print(df_dup_subtr_mq["ASS"])
+std_dev_sq = std_dev(df_dup_subtr_sq, unique_vd, dup_vd)
 
 
 div_val = div_all(parkins_mq_mult, parkin_sq_sorted)
@@ -256,7 +258,7 @@ for index, row in final_df.iterrows():
     y = row.tolist()
 
 
-print(l_square(final_df, x_val, p, c, dup_vd ))
+#print(l_square(final_df, x_val, p, c, dup_vd ))
 
 
 
