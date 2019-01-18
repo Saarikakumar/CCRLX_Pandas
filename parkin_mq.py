@@ -259,22 +259,3 @@ for index, row in final_df.iterrows():
 
 
 #print(l_square(final_df, x_val, p, c, dup_vd ))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
